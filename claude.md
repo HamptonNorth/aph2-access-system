@@ -51,11 +51,24 @@
 - Volunteers maintain this code: favour straightforward over clever, comment the *why*, never the *what*.
 
 ## Phase plan
-- **Phase 1 (now)**: UDP listener + DB writes. No HTTP. `bun run dev` listens, fake-controller sends, access_log fills, tests pass.
-- **Phase 2**: Hono app + `/api/auth`, `/api/admin-users` (cloned from diary, fob field added), `/api/users`, `/api/groups`, `/api/access-log`. Curl smoke tests.
-- **Phase 2.5**: Controller card-list sync (UHPPOTE 0x50 / 0x52). Admin "Resync now" endpoint and status page.
+- **Phase 1 (done)**: UDP listener + DB writes. `bun run dev` listens, fake-controller sends, access_log fills.
+- **Phase 2 (now)**: Hono app + `/api/auth`, `/api/admin-users` (cloned from diary, fob field added), `/api/users`, `/api/groups`, `/api/access-log`. Audit log on every admin write. Controller-sync queue is written to on every change that affects what the door should accept (Phase 2.5 will drain it). Curl smoke tests.
+- **Phase 2.5**: Controller card-list sync worker (UHPPOTE 0x50 / 0x52). Drains `controller_sync_queue`, retries on failure, exposes a "Resync now" endpoint.
 - **Phase 3**: Lit client (navbar cloned from diary, screens for users/groups/access-log/admin-users/enrollment).
 - **Phase 4**: Reports by group / by fob, CSV download.
+
+## Phase 2 routes (current)
+- `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`.
+- `/api/admin-users`: GET list / GET :id / POST / PUT :id / PUT :id/password / DELETE :id / POST :id/deactivate. super_user only (except `:id/password` and `GET :id`, which the admin can also do for themselves).
+- `/api/users`: GET list (`?include_deleted=1`) / GET :id / POST / PUT :id / POST :id/block / POST :id/unblock / DELETE :id (soft). manage_users role.
+- `/api/groups`: GET list / GET :id / POST / PUT :id / DELETE :id. manage_groups role.
+- `/api/access-log`: GET ? from / to / user_id / group_id / fob / outcome / limit. view_reports role.
+
+## Soft-delete model for door users
+- **Block** (`POST /api/users/:id/block`): `blocked=1`, `blocked_reason` set, fob still on file. Future swipes log as `'blocked'`. Phase 2.5 pushes a `delete` to the controller so the door physically rejects.
+- **Unblock** (`POST /api/users/:id/unblock`): `blocked=0`, fob still on file. Phase 2.5 pushes a `set`.
+- **Delete** (`DELETE /api/users/:id`): `deleted_at` set, `fob_number` nulled. The user row stays so historical access_log rows still resolve. The fob can be reissued to a new user immediately. Phase 2.5 pushes a `delete`.
+- After delete, every endpoint on that id returns 410 Gone.
 
 ## Getting started
 - `bun install`

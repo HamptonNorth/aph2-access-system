@@ -44,17 +44,30 @@ CREATE TABLE groups (
   updated_at      TEXT NOT NULL
 );
 
+-- `deleted_at` is the logical-delete marker (NULL = active). Workflow:
+--   1. unpaid user is BLOCKED (blocked=1, fob still on file, controller
+--      receives a 'delete' op so the door rejects them);
+--   2. ~12 months later they're DELETED (deleted_at = ISO timestamp,
+--      fob_number nulled so the physical fob can be reissued).
+-- access_log rows keep referencing the soft-deleted user via user_id, so
+-- historical "who came through the door in 2024?" reports still work.
+--
+-- `fob_number` is nullable BECAUSE of soft delete - a deleted user's fob
+-- field is cleared so the same number can be reused by a new user. SQLite
+-- UNIQUE allows multiple NULLs by default, which is what we want.
 CREATE TABLE users (
   id              INTEGER PRIMARY KEY,
   name            TEXT NOT NULL,
-  fob_number      TEXT NOT NULL UNIQUE,            -- 10-digit decimal string (matches what's printed on the fob)
+  fob_number      TEXT UNIQUE,                     -- 10-digit decimal; NULL after soft delete
   group_id        INTEGER REFERENCES groups(id),
   blocked         INTEGER NOT NULL DEFAULT 0,
   blocked_reason  TEXT,
+  deleted_at      TEXT,                            -- NULL = active; ISO 8601 = soft-deleted at
   created_at      TEXT NOT NULL,
   updated_at      TEXT NOT NULL
 );
-CREATE INDEX idx_users_group ON users(group_id);
+CREATE INDEX idx_users_group       ON users(group_id);
+CREATE INDEX idx_users_deleted_at  ON users(deleted_at);
 
 -- One row per swipe. Outcome distinguishes intrusion / passback / etc., so we
 -- never have to UNION across multiple log tables for reporting.

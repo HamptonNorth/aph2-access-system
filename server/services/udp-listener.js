@@ -13,10 +13,13 @@ import { Temporal } from "../lib/temporal.js";
 // Prepared statements at module scope (mirrors the diary pattern). Cheaper
 // than re-preparing per packet and clearer for volunteers reading the file.
 
+// `deleted_at IS NULL` is defence in depth - on soft-delete we already null
+// out fob_number, but if anything ever leaves a stale fob on a deleted row
+// we don't want it suddenly granting access.
 const findUserStmt = db.query(`
   SELECT id, name, fob_number, group_id, blocked, blocked_reason
   FROM users
-  WHERE fob_number = $fob
+  WHERE fob_number = $fob AND deleted_at IS NULL
 `);
 
 const lastGrantedStmt = db.query(`
