@@ -1,0 +1,20 @@
+{
+  "name": "aph2-access-system",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "APH2 Access System - door access control (Bun + SQLite + UHPPOTE).",
+  "scripts": {
+    "db:init": "bun run db/init.js",
+    "dev": "bun run --hot server/index.js",
+    "test": "bun test tests/"
+  },
+  "dependencies": {
+    "@js-temporal/polyfill": "^0.5.1",
+    "hono": "^4.12.14",
+    "lit": "^3.3.2"
+  },
+  "devDependencies": {
+    "tailwindcss": "3"
+  }
+}
