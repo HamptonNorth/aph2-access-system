@@ -34,9 +34,28 @@ let intervalHandle = null;
 
 // ---- demo / live ping implementations ----
 
+// Demo realism rules:
+//   * 99% success rate for organic pings - real controllers on a small LAN
+//     are very reliable; multi-failure runs felt like the demo was broken.
+//   * exactly one engineered failure scheduled at a random moment in the
+//     first ~5 minutes after boot, so a demo session always shows the
+//     red-dot UI without waiting hours for a stochastic miss.
+const BOOT_MS = Date.now();
+const DEMO_FORCED_FAIL_AT_MS =
+  BOOT_MS + Math.floor(30_000 + Math.random() * 240_000); // 0:30 - 4:30
+let demoForcedFailureFired = false;
+
 async function pingDemo() {
   const ts = Temporal.Now.instant().toString();
-  const ok = Math.random() < 0.95;
+
+  let ok;
+  if (!demoForcedFailureFired && Date.now() >= DEMO_FORCED_FAIL_AT_MS) {
+    ok = false;
+    demoForcedFailureFired = true;
+  } else {
+    ok = Math.random() < 0.99;
+  }
+
   if (ok) {
     const latency = 5 + Math.random() * 45;
     // Sleep so the response timestamp meaningfully follows the ping.
@@ -78,11 +97,13 @@ function recordResult(r) {
  * misbehaves.
  */
 export async function pingNow() {
-  const isDemo =
-    !config.controller || !config.controller.host || config.controller.host === "demo";
+  // Explicit mode flag: live integration only runs when the operator opts
+  // in by setting controller.mode = "live" in config/client.json. Anything
+  // else (or missing) defaults to demo so a fresh dev install just works.
+  const mode = config.controller?.mode ?? "demo";
   let r;
   try {
-    r = isDemo ? await pingDemo() : await pingLive();
+    r = mode === "live" ? await pingLive() : await pingDemo();
   } catch (e) {
     r = {
       ts: Temporal.Now.instant().toString(),
