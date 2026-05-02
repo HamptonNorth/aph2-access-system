@@ -7,8 +7,8 @@
   "scripts": {
     "db:init": "bun run db/init.js",
     "dev": "bun run --hot server/index.js",
-    "client:build": "bun build client/src/main.js --outdir client/dist && tailwindcss -i client/src/styles.css -o client/dist/styles.css && cp client/src/index.html client/dist/",
-    "client:build:prod": "bun build client/src/main.js --outdir client/dist --minify && tailwindcss -i client/src/styles.css -o client/dist/styles.css --minify && cp client/src/index.html client/dist/",
+    "client:build": "bun build client/src/main.js --outdir client/dist && tailwindcss -i client/src/styles.css -o client/dist/styles.css && cp client/src/index.html client/dist/ && cp -R client/src/assets/. client/dist/",
+    "client:build:prod": "bun build client/src/main.js --outdir client/dist --minify && tailwindcss -i client/src/styles.css -o client/dist/styles.css --minify && cp client/src/index.html client/dist/ && cp -R client/src/assets/. client/dist/",
     "client:watch:js": "bun build client/src/main.js --outdir client/dist --watch",
     "client:watch:css": "tailwindcss -i client/src/styles.css -o client/dist/styles.css --watch",
     "test": "bun test tests/"

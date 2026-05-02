@@ -125,32 +125,32 @@ class UsersList extends LightDomElement {
   }
 
   render() {
+    // Action buttons: padded enough to be tappable on mobile (≥ 28 px tall),
+    // colour-coded by intent, visual feedback on hover via background tint.
     const actions = (row) => {
       if (row.deleted_at) {
-        return html`<span class="text-gray-400">read only</span>`;
+        return html`<span class="text-gray-400 text-sm">read only</span>`;
       }
       return html`
-        <button
-          type="button"
-          class="text-slate-700 hover:underline mr-3"
-          @click=${(ev) => { ev.stopPropagation(); this._edit(row); }}
-        >Edit</button>
-        ${row.blocked
-          ? html`<button
-              type="button"
-              class="text-green-700 hover:underline mr-3"
-              @click=${(ev) => { ev.stopPropagation(); this._unblock(row); }}
-            >Unblock</button>`
-          : html`<button
-              type="button"
-              class="text-amber-700 hover:underline mr-3"
-              @click=${(ev) => { ev.stopPropagation(); this._block(row); }}
-            >Block</button>`}
-        <button
-          type="button"
-          class="text-red-700 hover:underline"
-          @click=${(ev) => { ev.stopPropagation(); this._delete(row); }}
-        >Delete</button>
+        <div class="inline-flex flex-wrap gap-1 items-center">
+          <button type="button"
+            class="px-2 py-1 rounded text-slate-700 hover:bg-slate-100"
+            @click=${(ev) => { ev.stopPropagation(); this._edit(row); }}
+          >Edit</button>
+          ${row.blocked
+            ? html`<button type="button"
+                class="px-2 py-1 rounded text-green-700 hover:bg-green-50"
+                @click=${(ev) => { ev.stopPropagation(); this._unblock(row); }}
+              >Unblock</button>`
+            : html`<button type="button"
+                class="px-2 py-1 rounded text-amber-700 hover:bg-amber-50"
+                @click=${(ev) => { ev.stopPropagation(); this._block(row); }}
+              >Block</button>`}
+          <button type="button"
+            class="px-2 py-1 rounded text-red-700 hover:bg-red-50"
+            @click=${(ev) => { ev.stopPropagation(); this._delete(row); }}
+          >Delete</button>
+        </div>
       `;
     };
 

@@ -131,9 +131,13 @@ class AppShell extends LightDomElement {
     return html`
       <header class="bg-slate-800 text-white border-b border-slate-900 relative">
         <div class="max-w-5xl mx-auto px-4 py-2 flex items-center gap-4">
-          <a href="#/" class="flex-none font-semibold tracking-tight" aria-label="Home"
+          <a href="#/" class="flex-none flex items-center gap-2" aria-label="Home"
              @click=${navClick("#/")}
-          >APH2 Access</a>
+          >
+            <img src="./header-logo.webp" alt="Audlem Public Hall"
+                 class="h-9 w-auto rounded-sm bg-white p-0.5">
+            <span class="font-semibold tracking-tight">APH2 Access</span>
+          </a>
 
           <!-- Desktop nav -->
           <nav class="hidden sm:flex items-center gap-1 text-sm">

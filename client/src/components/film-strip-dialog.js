@@ -96,7 +96,7 @@ class FilmStripDialog extends LightDomElement {
             : this._error
               ? html`<p class="text-sm text-red-600">${this._error}</p>`
               : html`
-                <div class="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
                   ${this._frames.map((f) => html`
                     <figure class="space-y-1">
                       <img src=${f.url} alt="frame"

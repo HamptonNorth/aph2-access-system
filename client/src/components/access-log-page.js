@@ -112,7 +112,11 @@ class AccessLogPage extends LightDomElement {
     this._userListOpen = false;
 
     this._defaults = { fromDate: "", fromTime: "00:00", toDate: "", toTime: "23:59" };
-    this._filtersOpen = true;
+    // Open by default on tablet+ where the filter form fits in the viewport
+    // alongside the table; collapsed on phones so the admin lands on the
+    // results, not a wall of inputs they have to scroll past.
+    this._filtersOpen =
+      typeof window !== "undefined" && window.innerWidth >= 640;
     this._appliedFilters = null;
   }
 

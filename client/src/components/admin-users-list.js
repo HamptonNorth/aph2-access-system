@@ -127,23 +127,23 @@ class AdminUsersList extends LightDomElement {
     const me = getAdmin();
 
     const actions = (row) => html`
-      <button
-        type="button"
-        class="text-slate-700 hover:underline mr-3"
-        @click=${(ev) => { ev.stopPropagation(); this._edit(row); }}
-      >Edit</button>
-      <button
-        type="button"
-        class="text-slate-700 hover:underline mr-3"
-        @click=${(ev) => { ev.stopPropagation(); this._setPassword(row); }}
-      >Password</button>
-      ${row.id === me?.id
-        ? html`<span class="text-gray-300 cursor-not-allowed" title="Cannot delete your own account">Delete</span>`
-        : html`<button
-            type="button"
-            class="text-red-700 hover:underline"
-            @click=${(ev) => { ev.stopPropagation(); this._delete(row); }}
-          >Delete</button>`}
+      <div class="inline-flex flex-wrap gap-1 items-center">
+        <button type="button"
+          class="px-2 py-1 rounded text-slate-700 hover:bg-slate-100"
+          @click=${(ev) => { ev.stopPropagation(); this._edit(row); }}
+        >Edit</button>
+        <button type="button"
+          class="px-2 py-1 rounded text-slate-700 hover:bg-slate-100"
+          @click=${(ev) => { ev.stopPropagation(); this._setPassword(row); }}
+        >Password</button>
+        ${row.id === me?.id
+          ? html`<span class="px-2 py-1 text-gray-300 cursor-not-allowed"
+              title="Cannot delete your own account">Delete</span>`
+          : html`<button type="button"
+              class="px-2 py-1 rounded text-red-700 hover:bg-red-50"
+              @click=${(ev) => { ev.stopPropagation(); this._delete(row); }}
+            >Delete</button>`}
+      </div>
     `;
 
     return html`
