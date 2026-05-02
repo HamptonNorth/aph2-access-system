@@ -77,15 +77,20 @@ export async function buildFilmStrip(swipeIso) {
   for (let i = 0; i < count; i++) {
     const offsetMs = (i - halfBefore) * interval * 1000;
     const ts = new Date(swipeMs + offsetMs).toISOString();
-    frames.push({ ts, url: frameUrl(dvr, ts) });
+    frames.push({ ts, url: frameUrl(dvr, ts, i) });
   }
 
   return { mode: dvr.mode, frames };
 }
 
-function frameUrl(dvr, _isoTs) {
+function frameUrl(dvr, _isoTs, frameIndex) {
   if (dvr.mode === "demo") {
-    return dvr.demo_image_url || "";
+    // demo_image_url may contain a "{i}" placeholder so each frame in the
+    // strip can map to a distinct file (e.g. /media/gym-demo-1.jpg through
+    // /media/gym-demo-5.jpg). When no placeholder is present, all frames
+    // share the same URL.
+    const tmpl = dvr.demo_image_url || "";
+    return tmpl.replace("{i}", String(frameIndex + 1));
   }
   // The live integration goes here. Build a HikVision ISAPI URL from
   // dvr.host / dvr.channel / credentials and the timestamp - then either
