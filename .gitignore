@@ -7,6 +7,11 @@ db/*.sqlite-journal
 db/*.sqlite-wal
 db/*.sqlite-shm
 
+# Member-data CSVs and similar imports - real names / fob numbers should
+# never be committed. Drop import sources in db/ but keep them out of git.
+db/*.csv
+db/*.tsv
+
 # Editor / OS noise
 .DS_Store
 .vscode/
