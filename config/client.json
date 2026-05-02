@@ -14,7 +14,8 @@
   "controller": {
     "serial_number": 423187757,
     "host": "192.168.1.100",
-    "port": 60000
+    "port": 60000,
+    "health_check_interval_seconds": 60
   },
   "passback_minutes": 2,
   "session_hours": 12,

@@ -1,11 +1,13 @@
 // Controller status: small read-only endpoint that surfaces the
-// controller_sync_queue contents so the UI can show pending counts and
-// recent activity. Phase 2.5 will add `POST /api/controller/resync` for
-// the manual replay button; for now this file is read-only.
+// controller_sync_queue contents and the latest health-check ping result
+// so the UI can show pending counts AND whether the controller is
+// actually reachable. Phase 2.5 will add `POST /api/controller/resync`
+// for the manual replay button; for now this file is read-only.
 
 import { Hono } from "hono";
 
 import db from "../db.js";
+import { getHealth } from "../services/controller-health.js";
 
 const routes = new Hono();
 
@@ -42,6 +44,7 @@ routes.get("/status", (c) => {
     done:    counts.done ?? 0,
     total:   counts.total ?? 0,
     recent:  recentStmt.all(),
+    health:  getHealth(),
   });
 });
 

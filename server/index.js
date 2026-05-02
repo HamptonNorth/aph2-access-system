@@ -4,6 +4,7 @@
 import app from "./app.js";
 import config from "./config.js";
 import { startUdpListener } from "./services/udp-listener.js";
+import { startHealthCheck, stopHealthCheck } from "./services/controller-health.js";
 
 const udpSocket = await startUdpListener({
   host: config.udp.host,
@@ -22,9 +23,17 @@ const httpServer = Bun.serve({
 // dev clicking on the link is most likely to reach.
 console.log(`[http] listening on http://localhost:${httpServer.port}`);
 
+// Periodic controller reachability check. Demo-mode for now (see
+// services/controller-health.js); the resulting state surfaces on the
+// /api/controller/status endpoint.
+startHealthCheck({
+  intervalSeconds: config.controller?.health_check_interval_seconds ?? 60,
+});
+
 // Graceful shutdown: close both listeners so the OS releases the ports.
 function shutdown(signal) {
   console.log(`[server] received ${signal}, closing`);
+  stopHealthCheck();
   udpSocket.close();
   httpServer.stop();
   process.exit(0);
