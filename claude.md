@@ -52,10 +52,29 @@
 
 ## Phase plan
 - **Phase 1 (done)**: UDP listener + DB writes. `bun run dev` listens, fake-controller sends, access_log fills.
-- **Phase 2 (now)**: Hono app + `/api/auth`, `/api/admin-users` (cloned from diary, fob field added), `/api/users`, `/api/groups`, `/api/access-log`. Audit log on every admin write. Controller-sync queue is written to on every change that affects what the door should accept (Phase 2.5 will drain it). Curl smoke tests.
-- **Phase 2.5**: Controller card-list sync worker (UHPPOTE 0x50 / 0x52). Drains `controller_sync_queue`, retries on failure, exposes a "Resync now" endpoint.
-- **Phase 3**: Lit client (navbar cloned from diary, screens for users/groups/access-log/admin-users/enrollment).
+- **Phase 2 (done)**: Hono app + `/api/auth`, `/api/admin-users`, `/api/users`, `/api/groups`, `/api/access-log`. Audit log on every admin write. Controller-sync queue written to on every change that affects what the door should accept.
+- **Phase 3 (now)**: Lit client. App-shell + login + home + users / groups / admin-users / access-log / controller status pages. Tailwind bundle. USB-EM4100-keyboard fob enrolment via the autofocused fob input on the user form.
+- **Phase 2.5 (next)**: Controller card-list sync worker (UHPPOTE 0x50 / 0x52). Drains `controller_sync_queue`, retries on failure, exposes a "Resync now" button on the controller-status page.
 - **Phase 4**: Reports by group / by fob, CSV download.
+
+## Phase 3 client layout
+- `client/src/{base,router,store,api,main}.js` — foundation (cloned from aph2-diary).
+- `client/src/components/`:
+  - `app-shell.js` — header + role-filtered NAV + outlet (cloned from diary, NAV adapted).
+  - `auth-login.js` — login form. Re-boots the app on success via `aph-auth-changed` event.
+  - `home-view.js` — quick-link tiles, role-filtered.
+  - `users-list.js` / `users-form.js` — door-user CRUD. Form fob input is autofocused so a USB EM4100 reader can type the number + Enter.
+  - `groups-list.js` / `groups-form.js`.
+  - `admin-users-list.js` / `admin-users-form.js` — adapted from diary's pattern; password set via prompt from list view.
+  - `access-log-page.js` — filterable list (date range + group + user + fob + outcome).
+  - `controller-status.js` — pending/done counts + recent queue rows.
+  - Generic helpers: `data-table.js`, `error-banner.js`, `confirm-dialog.js`, `form-field.js` (cloned from diary).
+- Build: `bun run client:build` (bundle + Tailwind + copy index.html). Watch in dev: `bun run client:watch:js` and `client:watch:css` in two panes.
+
+## Phase 3 server additions
+- `server/routes/config.js` — `GET /api/config/client` returns a whitelisted subset of `config/client.json` (no controller IPs / serials).
+- `server/routes/controller.js` — `GET /api/controller/status` returns `{ pending, done, total, recent }` from `controller_sync_queue`. super_user only.
+- `server/app.js` — `serveStatic` from `hono/bun` mounted at `/*`, serving `client/dist/`.
 
 ## Phase 2 routes (current)
 - `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`.

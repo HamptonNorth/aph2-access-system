@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="APH2 Access System - door access control admin for Audlem Public Hall.">
+  <title>APH2 Access</title>
+  <!-- Start the JS bundle and CSS fetch as early as possible without
+       blocking initial render. modulepreload warms the cache for the
+       deferred <script type="module"> below; the preload-and-swap
+       pattern on the stylesheet stops it being render-blocking. The
+       <noscript> fallback keeps the page styled when JS is off. -->
+  <link rel="modulepreload" href="./main.js">
+  <link rel="preload" href="./styles.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="./styles.css"></noscript>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen text-sm">
+  <main id="app" class="min-h-screen">
+    <p class="p-6 text-gray-600">Loading&hellip;</p>
+  </main>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

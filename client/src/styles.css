@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Reserve space for the vertical scrollbar whether it's visible or not.
+   Without this, any layout change that toggles scroll height makes the
+   centred <main> jump ~4 px right as the scrollbar disappears. */
+html {
+  scrollbar-gutter: stable;
+}
