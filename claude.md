@@ -1,3 +1,8 @@
+## Status — paused for hardware (2026-05-02)
+- Active development is **paused** until the UHPPOTE controller, the Paxton P38 reader, and the HikVision DVR are physically installed and on the network. Expected ~1 week from the date above.
+- The system is fully exercisable end-to-end *in demo mode*: synthetic access-log data, simulated controller health checks, and a static placeholder DVR snapshot. See **Hardware-dependent stubs** below for the exact list of code paths that need a live endpoint to graduate from demo to live.
+- When hardware arrives, the path to going live is: flip `mode` flags in `config/client.json`, fill in real host/port/credentials, and implement the `pingLive()` / `frameUrl(live)` / sync-queue-worker bodies. Each stub lists its acceptance criteria.
+
 ## Context
 - This repo is the **APH2 Access System** — a single-door access control system for Audlem Public Hall.
 - Sibling repo with the booking/diary code: `/var/home/rcollins/code/aph2-diary`. Same volunteer team maintains both, so we mirror that repo's conventions where they apply.
@@ -5,6 +10,7 @@
   - One UHPPOTE 1-door / 2-reader Wiegand-26 IP/UDP controller board (network-attached, default UDP port 60000).
   - One Paxton P38 EM4100 prox reader at the door (Wiegand-26 output to the controller).
   - One USB EM4100 enrollment reader at the admin workstation (HID keyboard — types the fob number into a focused input).
+  - One HikVision DVR with cameras covering the door, accessible via the ISAPI HTTP API.
   - Up to ~200 fobs in service.
 
 ## Stack
@@ -53,9 +59,59 @@
 ## Phase plan
 - **Phase 1 (done)**: UDP listener + DB writes. `bun run dev` listens, fake-controller sends, access_log fills.
 - **Phase 2 (done)**: Hono app + `/api/auth`, `/api/admin-users`, `/api/users`, `/api/groups`, `/api/access-log`. Audit log on every admin write. Controller-sync queue written to on every change that affects what the door should accept.
-- **Phase 3 (now)**: Lit client. App-shell + login + home + users / groups / admin-users / access-log / controller status pages. Tailwind bundle. USB-EM4100-keyboard fob enrolment via the autofocused fob input on the user form.
-- **Phase 2.5 (next)**: Controller card-list sync worker (UHPPOTE 0x50 / 0x52). Drains `controller_sync_queue`, retries on failure, exposes a "Resync now" button on the controller-status page.
+- **Phase 3 (done)**: Lit client. App-shell + login + home + users / groups / admin-users / access-log / controller status pages. Tailwind bundle. USB-EM4100-keyboard fob enrolment via the autofocused fob input on the user form. Controller-status page shows reachability via a 60-second simulated health-check ping. Access-log filters with typeahead user picker, comma-separated fob list, show/hide toggle. Film-strip dialog (5 simulated DVR frames) on every access-log row.
+- **Paused — awaiting hardware**. See "Hardware-dependent stubs" below.
+- **Phase 2.5 (when hardware arrives)**: Controller card-list sync worker (UHPPOTE 0x50 / 0x52). Drains `controller_sync_queue`, retries on failure, exposes a "Resync now" button on the controller-status page.
+- **Phase DVR-live (when hardware arrives)**: Replace the demo film-strip generator with a real HikVision ISAPI image-by-time fetch, and wire the disabled "Watch 2-minute clip" button to an ISAPI clip endpoint.
 - **Phase 4**: Reports by group / by fob, CSV download.
+
+## Hardware-dependent stubs
+Every demo-mode code path is listed here so that when hardware arrives the team has one checklist to walk. Each item names the file, the demo behaviour, what `live` mode needs to do, and the config knobs that have to be filled in.
+
+### 1. UHPPOTE controller-sync queue worker — `server/services/controller-sync.js` *(file does not exist yet)*
+- **Demo today**: every change that affects what the door accepts (insert with fob, fob change, block, unblock, soft-delete) writes a row to `controller_sync_queue` via `server/lib/controller-sync-queue.js`. Nothing drains it. The controller's on-board allowed-card list and our DB are *not* in sync today.
+- **Live needs**:
+  - A worker (setInterval or on-demand) that selects `WHERE done = 0 ORDER BY id` and, for each row, sends UHPPOTE function `0x50` (set card) or `0x52` (delete card) over UDP to `controller.host:port`.
+  - On success: `UPDATE controller_sync_queue SET done = 1, done_at = ?`. On failure: increment `attempts`, store `last_error`, retry with backoff.
+  - A "Resync now" button on the controller-status page that POSTs to a new `POST /api/controller/resync` endpoint to drain immediately.
+- **Config**: `controller.host`, `controller.port`, `controller.serial_number` (already present, currently placeholders).
+
+### 2. UHPPOTE controller health-check — `server/services/controller-health.js` (`pingLive()`)
+- **Demo today**: 99% success organic + one engineered failure scheduled randomly between 0:30 and 4:30 after boot. Latency 5–50 ms simulated. Drives the **online / offline / unknown** tile and 20-dot sparkline on `#/controller`.
+- **Live needs**: send UHPPOTE function `0x94` (or `0x20` get-status) and time the round-trip with a 3-second timeout. Return `{ts, ok, latency_ms, error}` shaped exactly like the demo result. Module already has the right imports + interval scheduling; only `pingLive()` body needs writing.
+- **Config flip**: `controller.mode` from `"demo"` → `"live"`.
+
+### 3. UHPPOTE controller "set listener" bootstrap — *(no script yet)*
+- **Today**: not done. Without this, the real controller won't know where to send swipe events and our UDP listener will hear nothing.
+- **Live needs**: a one-shot script (e.g. `scripts/configure-controller.js`) that sends UHPPOTE function `0x90` (set listener IP/port) to the controller's `host:port` with our server's IP and `udp.port`. Run once at install time.
+- **Config**: `controller.host` / `controller.port`, plus the server's reachable IP (probably easiest to pass as a CLI arg).
+
+### 4. HikVision DVR film-strip frames — `server/lib/dvr.js` (`frameUrl()` `mode === "live"`)
+- **Demo today**: every frame URL points at the local `/media/gym-demo.jpg` (resized once via `scripts/fetch-demo-snapshot.js`). Server adds a 500–2500 ms artificial latency so the dialog spinner has something to do. UI shows an amber "Demo mode" banner under the strip.
+- **Live needs**: `frameUrl()` builds a HikVision ISAPI image-by-time URL of the form `http://<host>/ISAPI/Streaming/channels/<chan>01/picture?starttime=YYYYMMDDTHHMMSSZ&endtime=...` for each frame's timestamp. Either return the URL (and rely on browser HTTP-Basic auth) or proxy through `/api/access-log/:id/film-strip-frame/:i`.
+- **Config flip**: `dvr.mode` from `"demo"` → `"live"`. Also add `dvr.host`, `dvr.port`, `dvr.channel`, `dvr.username`, `dvr.password` to `config/client.json` *and* update the whitelist in `server/routes/config.js` so credentials don't leak to the browser.
+
+### 5. HikVision DVR 2-minute video clip — film-strip dialog "Watch" button
+- **Demo today**: button is rendered `disabled` with a tooltip ("Available once the DVR is on the network"). No backend endpoint.
+- **Live needs**:
+  - `GET /api/access-log/:id/clip` — calls HikVision ISAPI clip-export (`/ISAPI/ContentMgmt/download` style) for a 2-minute window starting at the swipe time. Returns either a video stream URL or a proxied byte-stream.
+  - Drop the `disabled` attribute on the button in `client/src/components/film-strip-dialog.js` and wire `@click` to navigate to / inline-embed the clip URL.
+
+### 6. USB EM4100 enrollment reader
+- **Demo today**: not actually a stub — most USB EM4100 readers behave as a HID keyboard, "typing" the fob number plus Enter into the focused input. The `users-form.js` and `admin-users-form.js` fob inputs are autofocused on the new-user form so this Just Works as soon as a reader is plugged in.
+- **Live**: plug in the reader. If the device sends extra characters (some pad with leading spaces or specific delimiters), tweak the input handlers in those two files to strip them.
+
+### 7. Real-data import (replacing synthetic seed)
+- **Demo today**: `scripts/seed-test-data.js` reads `db/gym_members_2026.csv` and produces ~30k synthetic access events for 18 months. Tagged "test data" — its `users` table guard refuses to run if rows already exist.
+- **Live needs (go-live)**: separate `scripts/import-members.js` that reads the same CSV (or a fresh one), inserts only the `users` rows (no fake `access_log` events), and enqueues `controller_sync_queue` rows so the Phase 2.5 worker pushes them to the board. Currently absent — write before go-live.
+
+### Restart checklist when hardware arrives
+1. Implement the four `pingLive()` / `frameUrl(live)` / sync-worker / set-listener bodies above.
+2. Update `config/client.json`: flip `controller.mode` → `"live"`, set real `controller.host`, `controller.port`, `controller.serial_number`. Flip `dvr.mode` → `"live"`, add credentials block.
+3. Run the set-listener script once against the controller.
+4. Run `bun run scripts/import-members.js` against a vetted CSV.
+5. Watch `#/controller` — the green "online" tile and a populated sparkline confirm the round-trip.
+6. Tap a fob on the door reader; confirm a `granted` row in `#/access-log` and a green dot in the next ping.
 
 ## Phase 3 client layout
 - `client/src/{base,router,store,api,main}.js` — foundation (cloned from aph2-diary).
@@ -92,6 +148,10 @@
 ## Getting started
 - `bun install`
 - `bun run db:init` — create `db/access.sqlite` from schema.sql (**destructive**).
-- `bun run dev` — start server: opens DB and starts UDP listener on the configured port.
+- `bun run scripts/seed-admin.js <user> <pw> --super` — bootstrap a super-user (no API path before the first admin exists).
+- `bun run scripts/fetch-demo-snapshot.js` — one-shot: download + resize the placeholder gym image to `media/gym-demo.jpg` (used by the film-strip dialog).
+- `bun run scripts/seed-test-data.js` — populate ~219 demo users + ~30k synthetic access-log events from `db/gym_members_2026.csv`.
+- `bun run client:build` — bundle the Lit client + Tailwind CSS into `client/dist`.
+- `bun run dev` — start server: opens DB, starts UDP listener, starts HTTP server, schedules the controller-health ping.
 - `bun test` — tier-1 + tier-2 suites.
 - `bun run scripts/fake-controller.js <fob_number> [--denied]` — send a fake swipe packet to the local listener.
