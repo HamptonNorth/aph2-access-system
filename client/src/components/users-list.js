@@ -2,8 +2,9 @@
 // "Show deleted" toggle reveals soft-deleted rows for audit / fob-reissue.
 //
 // Per row actions: Edit, Block / Unblock, Delete (soft).
-// Soft-deleted rows show a "Reissue fob" link that opens the create form
-// pre-filled with the prior fob number.
+//
+// List is sorted server-side by surname, then first_name (the conventional
+// "people list" ordering).
 
 import { LightDomElement, html } from "../base.js";
 import { apiGet, apiPost, apiDelete } from "../api.js";
@@ -13,7 +14,8 @@ import "./error-banner.js";
 import "./confirm-dialog.js";
 
 const COLUMNS = [
-  { key: "name",        label: "Name" },
+  { key: "surname",     label: "Surname" },
+  { key: "first_name",  label: "First name" },
   { key: "fob_number",  label: "Fob" },
   { key: "group_name",  label: "Group" },
   {

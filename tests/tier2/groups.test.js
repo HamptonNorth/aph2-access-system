@@ -22,9 +22,10 @@ describe("groups CRUD", () => {
     const groupId = (await made.json()).group.id;
 
     await a.post("/api/users", {
-      name: "Yogi",
+      first_name: "Yogi",
+      surname:    "Bear",
       fob_number: "0000099001",
-      group_id: groupId,
+      group_id:   groupId,
     });
 
     const res = await a.get("/api/groups");

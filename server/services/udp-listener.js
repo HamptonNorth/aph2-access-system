@@ -17,7 +17,7 @@ import { Temporal } from "../lib/temporal.js";
 // out fob_number, but if anything ever leaves a stale fob on a deleted row
 // we don't want it suddenly granting access.
 const findUserStmt = db.query(`
-  SELECT id, name, fob_number, group_id, blocked, blocked_reason
+  SELECT id, first_name, surname, fob_number, group_id, blocked, blocked_reason
   FROM users
   WHERE fob_number = $fob AND deleted_at IS NULL
 `);

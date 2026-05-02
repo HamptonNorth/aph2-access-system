@@ -31,34 +31,35 @@ function requireUserManager(c) {
 }
 
 // ---- SQL ----
+//
+// All read statements expose `name` as a derived column (first_name + ' ' +
+// surname, trimmed) so any UI that wants a single display string still gets
+// one. Sort order is surname, first_name (the conventional "people list"
+// ordering).
 
-// Default list view excludes soft-deleted rows; pass `?include_deleted=1` to
-// see them.
-const listActiveStmt = db.query(`
-  SELECT u.id, u.name, u.fob_number, u.group_id, u.blocked, u.blocked_reason,
+const SELECT_LIST = `
+  SELECT u.id, u.first_name, u.surname,
+         TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.surname,'')) AS name,
+         u.fob_number, u.group_id, u.blocked, u.blocked_reason,
          u.deleted_at, u.created_at, u.updated_at,
          g.name AS group_name
   FROM users AS u
   LEFT JOIN groups AS g ON g.id = u.group_id
+`;
+
+const listActiveStmt = db.query(`
+  ${SELECT_LIST}
   WHERE u.deleted_at IS NULL
-  ORDER BY u.name
+  ORDER BY u.surname, u.first_name
 `);
 
 const listAllStmt = db.query(`
-  SELECT u.id, u.name, u.fob_number, u.group_id, u.blocked, u.blocked_reason,
-         u.deleted_at, u.created_at, u.updated_at,
-         g.name AS group_name
-  FROM users AS u
-  LEFT JOIN groups AS g ON g.id = u.group_id
-  ORDER BY (u.deleted_at IS NOT NULL), u.name
+  ${SELECT_LIST}
+  ORDER BY (u.deleted_at IS NOT NULL), u.surname, u.first_name
 `);
 
 const getStmt = db.query(`
-  SELECT u.id, u.name, u.fob_number, u.group_id, u.blocked, u.blocked_reason,
-         u.deleted_at, u.created_at, u.updated_at,
-         g.name AS group_name
-  FROM users AS u
-  LEFT JOIN groups AS g ON g.id = u.group_id
+  ${SELECT_LIST}
   WHERE u.id = $id
 `);
 
@@ -66,17 +67,20 @@ const getStmt = db.query(`
 const getInternalStmt = db.query(`SELECT * FROM users WHERE id = $id`);
 
 const insertStmt = db.query(`
-  INSERT INTO users (name, fob_number, group_id, blocked, blocked_reason, created_at, updated_at)
-  VALUES ($name, $fob_number, $group_id, 0, NULL, $now, $now)
+  INSERT INTO users
+    (first_name, surname, fob_number, group_id, blocked, blocked_reason, created_at, updated_at)
+  VALUES
+    ($first_name, $surname, $fob_number, $group_id, 0, NULL, $now, $now)
   RETURNING id
 `);
 
 const updateStmt = db.query(`
   UPDATE users SET
-    name           = $name,
-    fob_number     = $fob_number,
-    group_id       = $group_id,
-    updated_at     = $now
+    first_name = $first_name,
+    surname    = $surname,
+    fob_number = $fob_number,
+    group_id   = $group_id,
+    updated_at = $now
   WHERE id = $id AND deleted_at IS NULL
 `);
 
@@ -112,6 +116,10 @@ function asFob(v) {
   return s === "" ? null : s;
 }
 
+function asTrimmed(v) {
+  return typeof v === "string" ? v.trim() : "";
+}
+
 // ---- GET /api/users ----
 
 routes.get("/", (c) => {
@@ -144,8 +152,10 @@ routes.post("/", async (c) => {
   try { body = await c.req.json(); }
   catch { return c.json({ error: "request body must be JSON" }, 400); }
 
-  const name = typeof body.name === "string" ? body.name.trim() : "";
-  if (!name) return c.json({ error: "name is required" }, 400);
+  const first   = asTrimmed(body.first_name);
+  const surname = asTrimmed(body.surname);
+  if (!first)   return c.json({ error: "first_name is required" }, 400);
+  if (!surname) return c.json({ error: "surname is required" }, 400);
 
   const fob = asFob(body.fob_number);
   if (!fob) return c.json({ error: "fob_number is required" }, 400);
@@ -157,10 +167,11 @@ routes.post("/", async (c) => {
   try {
     db.transaction(() => {
       id = insertStmt.get({
-        $name: name,
+        $first_name: first,
+        $surname:    surname,
         $fob_number: fob,
-        $group_id: asGroupId(body.group_id),
-        $now: now,
+        $group_id:   asGroupId(body.group_id),
+        $now:        now,
       }).id;
       logChange({
         table: "users",
@@ -208,16 +219,19 @@ routes.put("/:id", async (c) => {
     return c.json({ error: "fob_number cannot be cleared via amend; delete the user instead" }, 400);
   }
 
+  // first_name / surname: undefined => keep; "" => reject (NOT NULL).
+  const firstRaw   = body.first_name === undefined ? undefined : asTrimmed(body.first_name);
+  const surnameRaw = body.surname    === undefined ? undefined : asTrimmed(body.surname);
+  if (firstRaw   === "") return c.json({ error: "first_name cannot be cleared" }, 400);
+  if (surnameRaw === "") return c.json({ error: "surname cannot be cleared" }, 400);
+
   const params = {
     $id: id,
-    $name: typeof body.name === "string" && body.name.trim()
-      ? body.name.trim()
-      : existing.name,
+    $first_name: firstRaw   ?? existing.first_name,
+    $surname:    surnameRaw ?? existing.surname,
     $fob_number: newFob,
-    $group_id: body.group_id === undefined
-      ? existing.group_id
-      : asGroupId(body.group_id),
-    $now: now,
+    $group_id:   body.group_id === undefined ? existing.group_id : asGroupId(body.group_id),
+    $now:        now,
   };
 
   try {

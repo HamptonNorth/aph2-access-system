@@ -11,6 +11,13 @@ function pendingQueueOpsForFob(fob) {
   ).all({ $f: fob }).map((r) => r.action);
 }
 
+// Convenience: the standard payload shape for a new door user.
+function userPayload(first, surname, fob, group_id) {
+  const out = { first_name: first, surname, fob_number: fob };
+  if (group_id != null) out.group_id = group_id;
+  return out;
+}
+
 describe("users CRUD", () => {
   it("anon can't list", async () => {
     const a = newAgent();
@@ -26,24 +33,26 @@ describe("users CRUD", () => {
     expect(body.users.map((u) => u.name).sort()).toEqual(["Alice Allowed", "Bob Blocked"]);
   });
 
-  it("create requires name and fob", async () => {
+  it("create requires first_name, surname and fob", async () => {
     const a = await loginAs("admin", "adminpw");
-    const noname = await a.post("/api/users", { fob_number: "0000003001" });
-    expect(noname.status).toBe(400);
 
-    const nofob = await a.post("/api/users", { name: "X" });
-    expect(nofob.status).toBe(400);
+    const noFirst = await a.post("/api/users", { surname: "X", fob_number: "0000003001" });
+    expect(noFirst.status).toBe(400);
+
+    const noSurname = await a.post("/api/users", { first_name: "X", fob_number: "0000003001" });
+    expect(noSurname.status).toBe(400);
+
+    const noFob = await a.post("/api/users", { first_name: "X", surname: "Y" });
+    expect(noFob.status).toBe(400);
   });
 
   it("create assigns a row and enqueues 'set' to controller-sync", async () => {
     const a = await loginAs("admin", "adminpw");
-    const res = await a.post("/api/users", {
-      name: "Carol Created",
-      fob_number: "0000003001",
-      group_id: 1,
-    });
+    const res = await a.post("/api/users", userPayload("Carol", "Created", "0000003001", 1));
     expect(res.status).toBe(201);
     const body = await res.json();
+    expect(body.user.first_name).toBe("Carol");
+    expect(body.user.surname).toBe("Created");
     expect(body.user.name).toBe("Carol Created");
     expect(body.user.fob_number).toBe("0000003001");
     expect(pendingQueueOpsForFob("0000003001")).toEqual(["set"]);
@@ -51,14 +60,14 @@ describe("users CRUD", () => {
 
   it("rejects duplicate fob_number with 409", async () => {
     const a = await loginAs("admin", "adminpw");
-    await a.post("/api/users", { name: "P1", fob_number: "0000003101" });
-    const dup = await a.post("/api/users", { name: "P2", fob_number: "0000003101" });
+    await a.post("/api/users", userPayload("First", "P1", "0000003101"));
+    const dup = await a.post("/api/users", userPayload("First", "P2", "0000003101"));
     expect(dup.status).toBe(409);
   });
 
   it("amend changes the fob and enqueues delete-old + set-new", async () => {
     const a = await loginAs("admin", "adminpw");
-    const made = await a.post("/api/users", { name: "Pat Patel", fob_number: "0000003201" });
+    const made = await a.post("/api/users", userPayload("Pat", "Patel", "0000003201"));
     const id = (await made.json()).user.id;
 
     const upd = await a.put(`/api/users/${id}`, { fob_number: "0000003202" });
@@ -69,9 +78,22 @@ describe("users CRUD", () => {
     expect(pendingQueueOpsForFob("0000003202")).toEqual(["set"]);
   });
 
+  it("amend can change first_name / surname; rejects clearing them", async () => {
+    const a = await loginAs("admin", "adminpw");
+    const made = await a.post("/api/users", userPayload("Rena", "Mable", "0000003205"));
+    const id = (await made.json()).user.id;
+
+    const ok = await a.put(`/api/users/${id}`, { first_name: "Renamed" });
+    expect(ok.status).toBe(200);
+    expect((await ok.json()).user.first_name).toBe("Renamed");
+
+    const clear = await a.put(`/api/users/${id}`, { surname: "" });
+    expect(clear.status).toBe(400);
+  });
+
   it("block requires a reason and enqueues a delete to the controller", async () => {
     const a = await loginAs("admin", "adminpw");
-    const made = await a.post("/api/users", { name: "Bo Blockee", fob_number: "0000003301" });
+    const made = await a.post("/api/users", userPayload("Bo", "Blockee", "0000003301"));
     const id = (await made.json()).user.id;
 
     const noReason = await a.post(`/api/users/${id}/block`, {});
@@ -88,7 +110,7 @@ describe("users CRUD", () => {
 
   it("unblock re-enqueues a set", async () => {
     const a = await loginAs("admin", "adminpw");
-    const made = await a.post("/api/users", { name: "Unblock Me", fob_number: "0000003401" });
+    const made = await a.post("/api/users", userPayload("Unblock", "Me", "0000003401"));
     const id = (await made.json()).user.id;
     await a.post(`/api/users/${id}/block`, { reason: "test" });
     const res = await a.post(`/api/users/${id}/unblock`, {});
@@ -99,7 +121,7 @@ describe("users CRUD", () => {
 
   it("soft-delete sets deleted_at, nulls fob_number, enqueues delete", async () => {
     const a = await loginAs("admin", "adminpw");
-    const made = await a.post("/api/users", { name: "Soft Delete", fob_number: "0000003501" });
+    const made = await a.post("/api/users", userPayload("Soft", "Delete", "0000003501"));
     const id = (await made.json()).user.id;
 
     const del = await a.delete(`/api/users/${id}`);
@@ -121,18 +143,18 @@ describe("users CRUD", () => {
 
   it("after soft-delete, the same fob can be reissued to a new user", async () => {
     const a = await loginAs("admin", "adminpw");
-    const made = await a.post("/api/users", { name: "Original", fob_number: "0000003601" });
+    const made = await a.post("/api/users", userPayload("Original", "User", "0000003601"));
     const id = (await made.json()).user.id;
     await a.delete(`/api/users/${id}`);
 
-    const reissue = await a.post("/api/users", { name: "Reissued", fob_number: "0000003601" });
+    const reissue = await a.post("/api/users", userPayload("Reissued", "User", "0000003601"));
     expect(reissue.status).toBe(201);
     expect((await reissue.json()).user.fob_number).toBe("0000003601");
   });
 
   it("amend rejects an attempt to clear fob_number (use delete instead)", async () => {
     const a = await loginAs("admin", "adminpw");
-    const made = await a.post("/api/users", { name: "Keep Fob", fob_number: "0000003701" });
+    const made = await a.post("/api/users", userPayload("Keep", "Fob", "0000003701"));
     const id = (await made.json()).user.id;
 
     const res = await a.put(`/api/users/${id}`, { fob_number: "" });
@@ -141,11 +163,11 @@ describe("users CRUD", () => {
 
   it("operations on a soft-deleted user return 410", async () => {
     const a = await loginAs("admin", "adminpw");
-    const made = await a.post("/api/users", { name: "Gone", fob_number: "0000003801" });
+    const made = await a.post("/api/users", userPayload("Gone", "Forever", "0000003801"));
     const id = (await made.json()).user.id;
     await a.delete(`/api/users/${id}`);
 
-    expect((await a.put(`/api/users/${id}`, { name: "x" })).status).toBe(410);
+    expect((await a.put(`/api/users/${id}`, { first_name: "x" })).status).toBe(410);
     expect((await a.post(`/api/users/${id}/block`, { reason: "x" })).status).toBe(410);
     expect((await a.post(`/api/users/${id}/unblock`, {})).status).toBe(410);
     expect((await a.delete(`/api/users/${id}`)).status).toBe(410);

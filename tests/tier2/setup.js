@@ -52,12 +52,12 @@ const schemaSql = readFileSync("db/schema.sql", "utf8");
 
   const insUser = db.query(`
     INSERT INTO users
-      (id, name, fob_number, group_id, blocked, blocked_reason, created_at, updated_at)
+      (id, first_name, surname, fob_number, group_id, blocked, blocked_reason, created_at, updated_at)
     VALUES
-      ($id, $n, $fob, $gid, $blk, $reason, $now, $now)
+      ($id, $fn, $sn, $fob, $gid, $blk, $reason, $now, $now)
   `);
-  insUser.run({ $id: 1, $n: "Alice Allowed", $fob: "0000000001", $gid: 1, $blk: 0, $reason: null,        $now: now });
-  insUser.run({ $id: 2, $n: "Bob Blocked",   $fob: "0000000002", $gid: 2, $blk: 1, $reason: "lost fob",  $now: now });
+  insUser.run({ $id: 1, $fn: "Alice", $sn: "Allowed", $fob: "0000000001", $gid: 1, $blk: 0, $reason: null,       $now: now });
+  insUser.run({ $id: 2, $fn: "Bob",   $sn: "Blocked", $fob: "0000000002", $gid: 2, $blk: 1, $reason: "lost fob", $now: now });
 
   // Admin users with known passwords. We hash lazily because Bun.password.hash
   // is async and module scope can't be top-level-awaited from inside a block.

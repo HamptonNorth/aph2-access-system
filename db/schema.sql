@@ -57,7 +57,8 @@ CREATE TABLE groups (
 -- UNIQUE allows multiple NULLs by default, which is what we want.
 CREATE TABLE users (
   id              INTEGER PRIMARY KEY,
-  name            TEXT NOT NULL,
+  first_name      TEXT NOT NULL,
+  surname         TEXT NOT NULL,
   fob_number      TEXT UNIQUE,                     -- 10-digit decimal; NULL after soft delete
   group_id        INTEGER REFERENCES groups(id),
   blocked         INTEGER NOT NULL DEFAULT 0,
@@ -68,6 +69,7 @@ CREATE TABLE users (
 );
 CREATE INDEX idx_users_group       ON users(group_id);
 CREATE INDEX idx_users_deleted_at  ON users(deleted_at);
+CREATE INDEX idx_users_sort        ON users(surname, first_name);
 
 -- One row per swipe. Outcome distinguishes intrusion / passback / etc., so we
 -- never have to UNION across multiple log tables for reporting.

@@ -61,9 +61,14 @@ function buildQuery(filters) {
   }
 
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  // user_name is derived from first_name + surname so the client just gets
+  // a display string. Keep the join minimal - we only show name + group on
+  // each row.
   const sql = `
     SELECT al.id, al.ts, al.fob_number, al.outcome, al.controller_sn,
-           al.user_id, u.name AS user_name, u.deleted_at AS user_deleted_at,
+           al.user_id,
+           TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.surname,'')) AS user_name,
+           u.deleted_at AS user_deleted_at,
            u.group_id, g.name AS group_name
     FROM access_log AS al
     LEFT JOIN users  AS u ON u.id = al.user_id

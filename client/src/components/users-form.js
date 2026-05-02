@@ -5,7 +5,8 @@
 // USB EM4100 enrollment: most readers act as a HID keyboard - they "type"
 // the fob number followed by Enter into the focused input. We autofocus the
 // fob input on the new-user form, so tapping the fob types the number and
-// hitting Enter submits the form. No special driver, no separate page.
+// hitting Enter submits the form. The first_name / surname inputs are filled
+// in by hand before the fob is tapped.
 
 import { LightDomElement, html } from "../base.js";
 import { apiGet, apiPost, apiPut } from "../api.js";
@@ -17,9 +18,10 @@ const TEXT_INPUT =
   "w-full border border-gray-300 rounded px-2 py-1.5 focus:border-slate-500 focus:outline-none";
 
 const BLANK = {
-  name: "",
+  first_name: "",
+  surname:    "",
   fob_number: "",
-  group_id: null,
+  group_id:   null,
 };
 
 class UsersForm extends LightDomElement {
@@ -69,7 +71,8 @@ class UsersForm extends LightDomElement {
     const fd = new FormData(ev.target);
     const groupRaw = fd.get("group_id");
     const payload = {
-      name:       (fd.get("name") ?? "").toString().trim(),
+      first_name: (fd.get("first_name") ?? "").toString().trim(),
+      surname:    (fd.get("surname")    ?? "").toString().trim(),
       fob_number: (fd.get("fob_number") ?? "").toString().trim(),
       group_id:   groupRaw === "" || groupRaw == null ? null : Number(groupRaw),
     };
@@ -97,36 +100,49 @@ class UsersForm extends LightDomElement {
     }
     const r = this._row;
     const isNew = this.userId == null;
+    const titleName = `${r.first_name ?? ""} ${r.surname ?? ""}`.trim();
 
     return html`
       <section class="max-w-lg space-y-3">
         <h1 class="text-lg font-semibold">
-          ${isNew ? "Add door user" : `Edit ${r.name || "user"}`}
+          ${isNew ? "Add door user" : `Edit ${titleName || "user"}`}
         </h1>
 
         <error-banner .message=${this._error}></error-banner>
 
         <form @submit=${(ev) => this._submit(ev)} class="space-y-4">
-          ${fieldRow({
-            label: "Name",
-            input: html`
-              <input
-                name="name" required autocomplete="off"
-                .value=${r.name ?? ""}
-                class=${TEXT_INPUT}
-              >
-            `,
-          })}
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            ${fieldRow({
+              label: "First name",
+              input: html`
+                <input
+                  name="first_name" required autocomplete="off"
+                  ?autofocus=${isNew}
+                  .value=${r.first_name ?? ""}
+                  class=${TEXT_INPUT}
+                >
+              `,
+            })}
+            ${fieldRow({
+              label: "Surname",
+              input: html`
+                <input
+                  name="surname" required autocomplete="off"
+                  .value=${r.surname ?? ""}
+                  class=${TEXT_INPUT}
+                >
+              `,
+            })}
+          </div>
 
           ${fieldRow({
             label: "Fob number",
             help:  isNew
-              ? "Tap the fob on the USB enrollment reader - it types the 10-digit number and Enter submits the form."
+              ? "Tap the fob on the USB enrollment reader after filling in the names - it types the 10-digit number and Enter submits the form."
               : "Changing this re-syncs the controller (delete old + add new).",
             input: html`
               <input
                 name="fob_number" required autocomplete="off"
-                ?autofocus=${isNew}
                 inputmode="numeric"
                 .value=${r.fob_number ?? ""}
                 class=${`${TEXT_INPUT} font-mono`}
