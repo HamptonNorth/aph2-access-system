@@ -19,6 +19,7 @@
   "passback_minutes": 2,
   "session_hours": 12,
   "access_log": {
-    "default_from_minutes": 60
+    "default_from_minutes_ago": 15,
+    "default_duration_minutes": 25
   }
 }

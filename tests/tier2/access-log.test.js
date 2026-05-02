@@ -86,6 +86,19 @@ describe("access-log filters", () => {
     expect(res.status).toBe(400);
   });
 
+  it("fob filter pads short numeric values to 10 digits", async () => {
+    // Stored fobs are "0000000001" / "0000000002"; admins should be able to
+    // type "1" / "2" without remembering the leading zeros.
+    const a = await loginAs("admin", "adminpw");
+    const padded   = await a.get(`/api/access-log?${SEED_RANGE}&fob=0000000001`);
+    const unpadded = await a.get(`/api/access-log?${SEED_RANGE}&fob=1`);
+    const p = await padded.json();
+    const u = await unpadded.json();
+    expect(p.access_log.length).toBe(u.access_log.length);
+    expect(p.access_log.length).toBeGreaterThan(0);
+    expect(u.access_log.every((r) => r.fob_number === "0000000001")).toBe(true);
+  });
+
   it("fob filter accepts a comma-separated list", async () => {
     const a = await loginAs("admin", "adminpw");
     // The seed inserts swipes for cardNumber 1 (fob "0000000001") and

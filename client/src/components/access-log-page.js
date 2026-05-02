@@ -86,6 +86,15 @@ class AccessLogPage extends LightDomElement {
     // Defaults derived from client config; populated in connectedCallback
     // so first paint already shows the "last X minutes" window.
     _defaults: { state: true },
+
+    // Show / hide the filter form. Open by default so first-time visitors
+    // see the controls; closing it gives back the screen for the table.
+    _filtersOpen: { state: true },
+
+    // Snapshot of whatever filters the currently-displayed table was loaded
+    // with. Drives the one-line summary that appears above the table when
+    // the filter form is collapsed.
+    _appliedFilters: { state: true },
   };
 
   constructor() {
@@ -102,22 +111,31 @@ class AccessLogPage extends LightDomElement {
     this._userSelectedId = null;
     this._userListOpen = false;
 
-    this._defaults = { fromDate: "", fromTime: "00:00", toDate: "" };
+    this._defaults = { fromDate: "", fromTime: "00:00", toDate: "", toTime: "23:59" };
+    this._filtersOpen = true;
+    this._appliedFilters = null;
   }
 
   async connectedCallback() {
     super.connectedCallback();
 
-    // Compute the default window: from = now minus X minutes, to = today
-    // end-of-day. Both rendered in local time for the inputs.
+    // Compute the default window: from = now - X minutes; to = from + D
+    // minutes (a fixed-duration window). Specifying "to" as a duration
+    // rather than an offset from "now" makes the window a single
+    // self-contained interval the admin can shift around without it
+    // mysteriously growing or shrinking. Both X (default_from_minutes_ago)
+    // and D (default_duration_minutes) live in config/client.json.
     const cfg = getClientConfig();
-    const minutesAgo = cfg.access_log?.default_from_minutes ?? 60;
-    const now = new Date();
-    const from = new Date(now.getTime() - minutesAgo * 60 * 1000);
+    const minutesAgo  = cfg.access_log?.default_from_minutes_ago ?? 60;
+    const durationMin = cfg.access_log?.default_duration_minutes ?? 20;
+    const now  = new Date();
+    const from = new Date(now.getTime()  - minutesAgo  * 60 * 1000);
+    const to   = new Date(from.getTime() + durationMin * 60 * 1000);
     this._defaults = {
       fromDate: ymd(from),
       fromTime: hm(from),
-      toDate:   ymd(now),
+      toDate:   ymd(to),
+      toTime:   hm(to),
     };
 
     // Pull groups + users for the filters. Both fail silently - the page
@@ -147,13 +165,14 @@ class AccessLogPage extends LightDomElement {
     const fromDate = get("from_date") ?? this._defaults.fromDate;
     const fromTime = get("from_time") ?? this._defaults.fromTime;
     const toDate   = get("to_date")   ?? this._defaults.toDate;
+    const toTime   = get("to_time")   ?? this._defaults.toTime;
 
     return {
       from:     localToIso(fromDate, fromTime || "00:00"),
-      to:       localToIso(toDate,   "23:59:59"),
+      to:       localToIso(toDate,   toTime   || "23:59"),
       group_id: get("group_id"),
       user_id:  this._userSelectedId,
-      fob:      get("fob"),                      // server splits on comma
+      fob:      get("fob"),                      // server splits on comma + pads
       outcome:  get("outcome"),
       limit:    get("limit") || 500,
     };
@@ -162,6 +181,7 @@ class AccessLogPage extends LightDomElement {
   async _load(filters) {
     this._loading = true;
     this._error = "";
+    this._appliedFilters = filters;
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(filters)) {
       if (v != null && v !== "") qs.set(k, v);
@@ -176,6 +196,37 @@ class AccessLogPage extends LightDomElement {
     } finally {
       this._loading = false;
     }
+  }
+
+  // One-line "From dd/mm/yyyy HH:MM to dd/mm/yyyy HH:MM, all outcomes,
+  // all groups, all users and fobs 47,909" summary of the LAST APPLIED
+  // filter set. Shown above the table when the filter form is collapsed
+  // so admins can still see what they're looking at.
+  _filtersSummary() {
+    const f = this._appliedFilters;
+    if (!f) return "";
+
+    const fmt = (iso) => {
+      if (!iso) return "—";
+      const d = new Date(iso);
+      return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+
+    const outcome = f.outcome ? `outcome ${f.outcome}` : "all outcomes";
+
+    const groupLabel = f.group_id
+      ? (this._groups.find((g) => g.id === Number(f.group_id))?.name ?? `#${f.group_id}`)
+      : null;
+    const group = groupLabel ? `group ${groupLabel}` : "all groups";
+
+    const userLabel = f.user_id
+      ? (this._users.find((u) => u.id === Number(f.user_id))?.name ?? `#${f.user_id}`)
+      : null;
+    const user = userLabel ? `user ${userLabel}` : "all users";
+
+    const fobs = f.fob ? `fobs ${f.fob}` : "all fobs";
+
+    return `From ${fmt(f.from)} to ${fmt(f.to)}, ${outcome}, ${group}, ${user} and ${fobs}`;
   }
 
   _onFilterSubmit(ev) {
@@ -199,6 +250,7 @@ class AccessLogPage extends LightDomElement {
         if (form.elements.from_date) form.elements.from_date.value = this._defaults.fromDate;
         if (form.elements.from_time) form.elements.from_time.value = this._defaults.fromTime;
         if (form.elements.to_date)   form.elements.to_date.value   = this._defaults.toDate;
+        if (form.elements.to_time)   form.elements.to_time.value   = this._defaults.toTime;
       }
       this._load(this._currentFilters(form));
     }, 0);
@@ -245,8 +297,19 @@ class AccessLogPage extends LightDomElement {
     const d = this._defaults;
     return html`
       <section class="space-y-4">
-        <h1 class="text-lg font-semibold">Access log</h1>
+        <div class="flex items-center justify-between gap-3">
+          <h1 class="text-lg font-semibold">Access log</h1>
+          <button
+            type="button"
+            class="px-3 py-1.5 rounded border border-gray-300 hover:bg-gray-50 text-sm"
+            @click=${() => { this._filtersOpen = !this._filtersOpen; }}
+          >${this._filtersOpen ? "Hide filters" : "Show filters"}</button>
+        </div>
 
+        <!-- Wrapper owns the show/hide. The form has display:grid from
+             Tailwind, which would outrank [hidden]'s display:none if the
+             attribute lived on the form itself. -->
+        <div ?hidden=${!this._filtersOpen}>
         <form @submit=${(ev) => this._onFilterSubmit(ev)}
               class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white border border-gray-200 rounded p-3"
         >
@@ -266,6 +329,12 @@ class AccessLogPage extends LightDomElement {
             label: "To date",
             input: html`<input name="to_date" type="date"
                           .value=${d.toDate}
+                          class=${TEXT_INPUT}>`,
+          })}
+          ${fieldRow({
+            label: "To time",
+            input: html`<input name="to_time" type="time"
+                          .value=${d.toTime}
                           class=${TEXT_INPUT}>`,
           })}
           ${fieldRow({
@@ -294,7 +363,7 @@ class AccessLogPage extends LightDomElement {
           ${this._renderUserTypeahead()}
           ${fieldRow({
             label: "Fob number(s)",
-            help:  "Single value or comma-separated list, e.g. 0000000001,0000000002",
+            help:  "Single value or comma-separated list. Leading zeros optional - 1234 matches 0000001234.",
             input: html`<input name="fob" autocomplete="off"
                           .value=${""}
                           class=${`${TEXT_INPUT} font-mono`}>`,
@@ -312,8 +381,13 @@ class AccessLogPage extends LightDomElement {
             <span class="ml-auto text-xs text-gray-500">${this._info}</span>
           </div>
         </form>
+        </div>
 
         <error-banner .message=${this._error}></error-banner>
+
+        ${!this._filtersOpen && this._appliedFilters
+          ? html`<p class="text-xs text-gray-500">${this._filtersSummary()}</p>`
+          : ""}
 
         ${this._loading
           ? html`<p class="text-sm text-gray-500 py-4">Loading…</p>`

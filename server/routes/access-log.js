@@ -94,13 +94,14 @@ routes.get("/", (c) => {
   const limit = Math.min(MAX_LIMIT, Math.max(1, Number(q.limit) || DEFAULT_LIMIT));
 
   // `fob` accepts a single value or a comma-separated list. We split, trim
-  // each entry, drop empties, and pass a (possibly empty) array down to the
-  // query builder.
+  // each entry, drop empties, and left-pad to 10 digits so users can type
+  // "1234" instead of "0000001234" - all fobs in the DB are stored padded.
   const fobsRaw = typeof q.fob === "string" ? q.fob : "";
   const fobs = fobsRaw
     .split(",")
     .map((s) => s.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .map((s) => /^\d+$/.test(s) ? s.padStart(10, "0") : s);
 
   const filters = {
     from:    typeof q.from === "string" ? q.from : null,

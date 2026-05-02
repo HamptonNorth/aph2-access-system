@@ -11,7 +11,7 @@ const CONFIG_DEFAULTS = {
   app: { name: "APH2 Access", version: "" },
   passback_minutes: 2,
   session_hours: 12,
-  access_log: { default_from_minutes: 60 },
+  access_log: { default_from_minutes_ago: 60, default_duration_minutes: 20 },
 };
 let _config = CONFIG_DEFAULTS;
 
