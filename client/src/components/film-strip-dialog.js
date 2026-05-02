@@ -111,6 +111,24 @@ class FilmStripDialog extends LightDomElement {
                       Demo mode — frames are simulated. Live HikVision ISAPI integration ships when the DVR is on the network.
                     </p>`
                   : ""}
+
+                <!-- Future: clicking this fetches a 2-minute clip from the
+                     DVR starting at the swipe time. Disabled until the
+                     ISAPI integration ships. -->
+                <div class="border-t border-gray-200 pt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <p class="text-sm text-gray-500">
+                    2-minute video clip starting at the swipe time.
+                  </p>
+                  <button type="button" disabled
+                    class="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-slate-200 text-slate-500 text-sm cursor-not-allowed self-start sm:self-auto"
+                    title="Available once the DVR is on the network">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                         fill="currentColor" class="w-4 h-4" aria-hidden="true">
+                      <path d="M8 5v14l11-7z"/>
+                    </svg>
+                    Watch
+                  </button>
+                </div>
               `}
         </div>
       </div>

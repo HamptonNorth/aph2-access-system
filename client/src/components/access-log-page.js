@@ -304,7 +304,7 @@ class AccessLogPage extends LightDomElement {
     document.body.appendChild(dlg);
   }
 
-  _renderVideoButton(row) {
+  _renderFilmStripButton(row) {
     return html`
       <button type="button"
         class="text-slate-700 hover:text-slate-900"
@@ -313,7 +313,8 @@ class AccessLogPage extends LightDomElement {
         @click=${() => this._openFilmStrip(row)}>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
              fill="currentColor" class="w-5 h-5" aria-hidden="true">
-          <path d="M3 6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6Zm15.5 4 4-2.5v9l-4-2.5v-4Z"/>
+          <path fill-rule="evenodd" clip-rule="evenodd"
+            d="M1.5 5.625c0-1.036.84-1.875 1.875-1.875h17.25c1.035 0 1.875.84 1.875 1.875v12.75c0 1.035-.84 1.875-1.875 1.875H3.375A1.875 1.875 0 0 1 1.5 18.375V5.625Zm19.5 3.75a.375.375 0 0 0-.375-.375h-1.5a.375.375 0 0 0-.375.375v1.5c0 .207.168.375.375.375h1.5a.375.375 0 0 0 .375-.375v-1.5Zm0 3.75a.375.375 0 0 0-.375-.375h-1.5a.375.375 0 0 0-.375.375v1.5c0 .207.168.375.375.375h1.5a.375.375 0 0 0 .375-.375v-1.5Zm0 3.75a.375.375 0 0 0-.375-.375h-1.5a.375.375 0 0 0-.375.375v1.5c0 .207.168.375.375.375h1.5a.375.375 0 0 0 .375-.375v-1.5ZM4.875 18.75a.375.375 0 0 1-.375-.375v-1.5c0-.207.168-.375.375-.375h1.5c.207 0 .375.168.375.375v1.5a.375.375 0 0 1-.375.375h-1.5Zm0-3.75a.375.375 0 0 1-.375-.375v-1.5c0-.207.168-.375.375-.375h1.5c.207 0 .375.168.375.375v1.5a.375.375 0 0 1-.375.375h-1.5Zm0-3.75a.375.375 0 0 1-.375-.375v-1.5c0-.207.168-.375.375-.375h1.5c.207 0 .375.168.375.375v1.5a.375.375 0 0 1-.375.375h-1.5Z"/>
         </svg>
       </button>
     `;
@@ -421,7 +422,7 @@ class AccessLogPage extends LightDomElement {
               <data-table
                 .columns=${COLUMNS}
                 .rows=${this._rows}
-                .actions=${(row) => this._renderVideoButton(row)}
+                .actions=${(row) => this._renderFilmStripButton(row)}
                 pageSize="50"
                 empty="No access-log rows match those filters."
               ></data-table>
