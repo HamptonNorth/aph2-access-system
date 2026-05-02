@@ -21,5 +21,11 @@
   "access_log": {
     "default_from_minutes_ago": 15,
     "default_duration_minutes": 25
+  },
+  "dvr": {
+    "mode": "demo",
+    "demo_image_url": "https://aphclient.redmug.dev/media/gym3_large.jpg",
+    "frame_count": 5,
+    "frame_interval_seconds": 4
   }
 }

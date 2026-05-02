@@ -293,6 +293,32 @@ class AccessLogPage extends LightDomElement {
     if (this._userMatches.length > 0) this._userListOpen = true;
   }
 
+  // ---- film-strip launcher ----
+
+  _openFilmStrip(row) {
+    const dlg = document.createElement("film-strip-dialog");
+    dlg.accessLogId = row.id;
+    dlg.swipeTime   = row.ts;
+    dlg.fobNumber   = row.fob_number;
+    dlg.userName    = row.user_name ?? "";
+    document.body.appendChild(dlg);
+  }
+
+  _renderVideoButton(row) {
+    return html`
+      <button type="button"
+        class="text-slate-700 hover:text-slate-900"
+        aria-label="View door footage"
+        title="View door footage"
+        @click=${() => this._openFilmStrip(row)}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+             fill="currentColor" class="w-5 h-5" aria-hidden="true">
+          <path d="M3 6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6Zm15.5 4 4-2.5v9l-4-2.5v-4Z"/>
+        </svg>
+      </button>
+    `;
+  }
+
   render() {
     const d = this._defaults;
     return html`
@@ -395,6 +421,7 @@ class AccessLogPage extends LightDomElement {
               <data-table
                 .columns=${COLUMNS}
                 .rows=${this._rows}
+                .actions=${(row) => this._renderVideoButton(row)}
                 pageSize="50"
                 empty="No access-log rows match those filters."
               ></data-table>

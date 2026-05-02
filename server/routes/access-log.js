@@ -14,8 +14,12 @@
 import { Hono } from "hono";
 
 import db from "../db.js";
+import { buildFilmStrip } from "../lib/dvr.js";
 
 const routes = new Hono();
+
+// Single-row lookup used by the film-strip endpoint.
+const getAccessLogStmt = db.query(`SELECT id, ts FROM access_log WHERE id = $id`);
 
 const VALID_OUTCOMES = new Set(["granted", "blocked", "unknown", "passback"]);
 const DEFAULT_LIMIT = 500;
@@ -126,6 +130,27 @@ routes.get("/", (c) => {
   const { sql, params } = buildQuery(filters);
   const rows = db.query(sql).all(params);
   return c.json({ access_log: rows, limit, count: rows.length });
+});
+
+// ---- GET /api/access-log/:id/film-strip ----
+//
+// 5 (configurable) snapshots from the DVR centred on the swipe time.
+// Currently always served in demo mode - see server/lib/dvr.js.
+routes.get("/:id/film-strip", (c) => {
+  const deny = requireReportViewer(c);
+  if (deny) return deny;
+
+  const id = Number(c.req.param("id"));
+  if (!Number.isFinite(id)) return c.json({ error: "id must be numeric" }, 400);
+
+  const row = getAccessLogStmt.get({ $id: id });
+  if (!row) return c.json({ error: "not found" }, 404);
+
+  try {
+    return c.json(buildFilmStrip(row.ts));
+  } catch (e) {
+    return c.json({ error: e.message }, 500);
+  }
 });
 
 export default routes;

@@ -17,6 +17,7 @@ import "./components/admin-users-form.js";
 
 import "./components/access-log-page.js";
 import "./components/controller-status.js";
+import "./components/film-strip-dialog.js";
 
 import { checkSession, getAdmin, loadClientConfig } from "./store.js";
 import { route, setDefault, start as startRouter } from "./router.js";
