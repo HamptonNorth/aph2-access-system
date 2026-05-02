@@ -19,6 +19,7 @@
     "lit": "^3.3.2"
   },
   "devDependencies": {
+    "sharp": "^0.34.0",
     "tailwindcss": "3"
   }
 }

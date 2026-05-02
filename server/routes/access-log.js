@@ -136,7 +136,7 @@ routes.get("/", (c) => {
 //
 // 5 (configurable) snapshots from the DVR centred on the swipe time.
 // Currently always served in demo mode - see server/lib/dvr.js.
-routes.get("/:id/film-strip", (c) => {
+routes.get("/:id/film-strip", async (c) => {
   const deny = requireReportViewer(c);
   if (deny) return deny;
 
@@ -147,7 +147,7 @@ routes.get("/:id/film-strip", (c) => {
   if (!row) return c.json({ error: "not found" }, 404);
 
   try {
-    return c.json(buildFilmStrip(row.ts));
+    return c.json(await buildFilmStrip(row.ts));
   } catch (e) {
     return c.json({ error: e.message }, 500);
   }

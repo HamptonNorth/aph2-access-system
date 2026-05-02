@@ -24,8 +24,10 @@
   },
   "dvr": {
     "mode": "demo",
-    "demo_image_url": "https://aphclient.redmug.dev/media/gym3_large.jpg",
+    "demo_image_url": "/media/gym-demo.jpg",
     "frame_count": 5,
-    "frame_interval_seconds": 4
+    "frame_interval_seconds": 4,
+    "demo_min_latency_ms": 500,
+    "demo_max_latency_ms": 2500
   }
 }

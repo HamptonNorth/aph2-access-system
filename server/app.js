@@ -33,6 +33,18 @@ app.route("/api/access-log",   accessLogRoutes);
 app.route("/api/config",       configRoutes);
 app.route("/api/controller",   controllerRoutes);
 
+// Demo / DVR media. The film-strip viewer points its <img src> at
+// /media/gym-demo.jpg (populated by scripts/fetch-demo-snapshot.js). Mounted
+// before the client bundle so the SPA fallback never swallows /media/*.
+// Long-lived cache: the file barely ever changes and the file name is fixed.
+app.use(
+  "/media/*",
+  serveStatic({
+    root: "./",
+    onFound: (_path, c) => c.header("Cache-Control", "public, max-age=86400"),
+  }),
+);
+
 // Static client bundle. Serves client/dist/index.html for `/` and individual
 // asset files below it. If the client hasn't been built yet, serveStatic
 // falls through to the friendlier message at the bottom of this file.

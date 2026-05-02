@@ -26,6 +26,10 @@ const DEFAULTS = {
   demo_image_url: "",
   frame_count: 5,
   frame_interval_seconds: 4,
+  // Demo-only artificial latency window so the spinner in the UI has
+  // something to do - real DVRs aren't instantaneous.
+  demo_min_latency_ms: 500,
+  demo_max_latency_ms: 2500,
 };
 
 // Read on every call so a sysadmin can edit config/client.json without
@@ -44,10 +48,14 @@ function readDvrConfig() {
  * Frames are centred on the swipe: with count=5 and interval=4s, the
  * offsets are -8s, -4s, 0s, +4s, +8s.
  *
+ * In demo mode the function awaits a random delay between
+ * demo_min_latency_ms and demo_max_latency_ms so the UI spinner has
+ * something to do. Real ISAPI fetches will provide their own latency.
+ *
  * @param {string} swipeIso  ISO 8601 timestamp of the access_log row.
- * @returns {{ mode: string, frames: Array<{ts: string, url: string}> }}
+ * @returns {Promise<{ mode: string, frames: Array<{ts: string, url: string}> }>}
  */
-export function buildFilmStrip(swipeIso) {
+export async function buildFilmStrip(swipeIso) {
   const dvr = readDvrConfig();
   const count    = Math.max(1, Number(dvr.frame_count) || 5);
   const interval = Math.max(1, Number(dvr.frame_interval_seconds) || 4);
@@ -56,6 +64,13 @@ export function buildFilmStrip(swipeIso) {
   const swipeMs = Date.parse(swipeIso);
   if (!Number.isFinite(swipeMs)) {
     throw new Error(`buildFilmStrip: invalid swipe timestamp: ${swipeIso}`);
+  }
+
+  if (dvr.mode === "demo") {
+    const lo = Math.max(0, Number(dvr.demo_min_latency_ms) || 0);
+    const hi = Math.max(lo, Number(dvr.demo_max_latency_ms) || lo);
+    const delay = lo + Math.random() * (hi - lo);
+    await new Promise((r) => setTimeout(r, delay));
   }
 
   const frames = [];

@@ -83,7 +83,16 @@ class FilmStripDialog extends LightDomElement {
           </div>
 
           ${this._loading
-            ? html`<p class="text-sm text-gray-500 py-8 text-center">Loading frames…</p>`
+            ? html`
+                <div class="py-10 flex flex-col items-center gap-2 text-gray-500">
+                  <svg class="animate-spin h-8 w-8 text-slate-500" viewBox="0 0 24 24"
+                       fill="none" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity="0.25"></circle>
+                    <path fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z"></path>
+                  </svg>
+                  <p class="text-sm">Fetching frames from DVR…</p>
+                </div>
+              `
             : this._error
               ? html`<p class="text-sm text-red-600">${this._error}</p>`
               : html`
