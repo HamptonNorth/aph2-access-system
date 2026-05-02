@@ -30,12 +30,21 @@ const existing = db.query("SELECT id FROM admin_users WHERE username = $u").get(
 
 if (existing) {
   if (makeSuper) {
+    // --super is intended to be idempotent: re-running it always grants
+    // every role flag, not just super_user. Without this, an admin
+    // created earlier without --super (so all flags 0) would still see
+    // an empty navbar after a later --super run.
     db.query(`
       UPDATE admin_users
-      SET hashed_password = $h, super_user = 1, updated_at = $now
+      SET hashed_password = $h,
+          super_user      = 1,
+          manage_users    = 1,
+          manage_groups   = 1,
+          view_reports    = 1,
+          updated_at      = $now
       WHERE id = $id
     `).run({ $h: hash, $id: existing.id, $now: now });
-    console.log(`reset password for existing admin ${username} (id=${existing.id}, super_user=1)`);
+    console.log(`reset password + granted all roles to existing admin ${username} (id=${existing.id})`);
   } else {
     db.query(`
       UPDATE admin_users SET hashed_password = $h, updated_at = $now WHERE id = $id
