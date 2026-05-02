@@ -16,7 +16,11 @@ const httpServer = Bun.serve({
   port: config.http.port,
   fetch: app.fetch,
 });
-console.log(`[http] listening on ${httpServer.hostname}:${httpServer.port}`);
+// Print the URL in the click-through form most terminals (VS Code, iTerm,
+// modern GNOME / Kitty, …) turn into a Ctrl/Cmd-click link. We always use
+// `localhost` here even when bound to 0.0.0.0, because that's the host the
+// dev clicking on the link is most likely to reach.
+console.log(`[http] listening on http://localhost:${httpServer.port}`);
 
 // Graceful shutdown: close both listeners so the OS releases the ports.
 function shutdown(signal) {

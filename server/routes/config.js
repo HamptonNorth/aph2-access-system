@@ -23,9 +23,17 @@ function readClient() {
       app: raw.app ?? {},
       passback_minutes: raw.passback_minutes ?? 2,
       session_hours:    raw.session_hours ?? 12,
+      access_log: {
+        default_from_minutes: raw.access_log?.default_from_minutes ?? 60,
+      },
     };
   } catch {
-    return { app: { name: "APH2 Access" }, passback_minutes: 2, session_hours: 12 };
+    return {
+      app: { name: "APH2 Access" },
+      passback_minutes: 2,
+      session_hours: 12,
+      access_log: { default_from_minutes: 60 },
+    };
   }
 }
 

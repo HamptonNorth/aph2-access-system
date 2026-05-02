@@ -17,5 +17,8 @@
     "port": 60000
   },
   "passback_minutes": 2,
-  "session_hours": 12
+  "session_hours": 12,
+  "access_log": {
+    "default_from_minutes": 60
+  }
 }

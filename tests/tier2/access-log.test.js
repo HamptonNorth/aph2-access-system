@@ -86,6 +86,25 @@ describe("access-log filters", () => {
     expect(res.status).toBe(400);
   });
 
+  it("fob filter accepts a comma-separated list", async () => {
+    const a = await loginAs("admin", "adminpw");
+    // The seed inserts swipes for cardNumber 1 (fob "0000000001") and
+    // cardNumber 2 ("0000000002"). With a single fob filter we get one
+    // user's rows; with both fobs comma-joined we should get both.
+    const single = await a.get(
+      `/api/access-log?${SEED_RANGE}&fob=0000000001`,
+    );
+    const both = await a.get(
+      `/api/access-log?${SEED_RANGE}&fob=0000000001,0000000002`,
+    );
+    const sBody = await single.json();
+    const bBody = await both.json();
+    expect(sBody.access_log.every((r) => r.fob_number === "0000000001")).toBe(true);
+    expect(bBody.access_log.length).toBeGreaterThan(sBody.access_log.length);
+    expect(new Set(bBody.access_log.map((r) => r.fob_number)))
+      .toEqual(new Set(["0000000001", "0000000002"]));
+  });
+
   it("403 if the admin lacks view_reports", async () => {
     // usermgr admin has manage_users but not view_reports.
     const a = await loginAs("usermgr", "usermgrpw");

@@ -2,13 +2,14 @@
 //
 // Covers spec item 5.5 user-attendance:
 //
-//   GET /api/access-log?from=ISO&to=ISO&group_id=N&user_id=N&fob=NNNNNNNNNN&outcome=granted&limit=N
+//   GET /api/access-log?from=ISO&to=ISO&group_id=N&user_id=N&fob=NNNN[,NNNN...]&outcome=granted&limit=N
 //
-// All filters are optional; combine freely. Returned rows are joined to the
-// users + groups tables so the UI doesn't need to hit those endpoints
-// separately. Soft-deleted users are still resolved (so historical reports
-// remain accurate) but you can spot them by `user_deleted_at IS NOT NULL`
-// on the row.
+// All filters are optional; combine freely. The `fob` filter accepts a
+// single fob or a comma-separated list - useful for "show me activity for
+// these three fobs at once". Returned rows are joined to the users + groups
+// tables so the UI doesn't need to hit those endpoints separately.
+// Soft-deleted users are still resolved (so historical reports remain
+// accurate) but you can spot them by `user_deleted_at IS NOT NULL`.
 
 import { Hono } from "hono";
 
@@ -51,9 +52,12 @@ function buildQuery(filters) {
     where.push("u.group_id = $group_id");
     params.$group_id = filters.groupId;
   }
-  if (filters.fob) {
-    where.push("al.fob_number = $fob");
-    params.$fob = filters.fob;
+  if (filters.fobs && filters.fobs.length > 0) {
+    // Build an IN clause with a named placeholder per value so we still get
+    // bound-parameter safety - SQLite doesn't have an array placeholder.
+    const placeholders = filters.fobs.map((_, i) => `$fob${i}`).join(", ");
+    where.push(`al.fob_number IN (${placeholders})`);
+    filters.fobs.forEach((f, i) => { params[`$fob${i}`] = f; });
   }
   if (filters.outcome) {
     where.push("al.outcome = $outcome");
@@ -89,12 +93,21 @@ routes.get("/", (c) => {
   const q = c.req.query();
   const limit = Math.min(MAX_LIMIT, Math.max(1, Number(q.limit) || DEFAULT_LIMIT));
 
+  // `fob` accepts a single value or a comma-separated list. We split, trim
+  // each entry, drop empties, and pass a (possibly empty) array down to the
+  // query builder.
+  const fobsRaw = typeof q.fob === "string" ? q.fob : "";
+  const fobs = fobsRaw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   const filters = {
     from:    typeof q.from === "string" ? q.from : null,
     to:      typeof q.to   === "string" ? q.to   : null,
     userId:  q.user_id  != null && q.user_id  !== "" ? Number(q.user_id)  : null,
     groupId: q.group_id != null && q.group_id !== "" ? Number(q.group_id) : null,
-    fob:     typeof q.fob === "string" && q.fob.trim() ? q.fob.trim() : null,
+    fobs,
     outcome: typeof q.outcome === "string" ? q.outcome : null,
     limit,
   };

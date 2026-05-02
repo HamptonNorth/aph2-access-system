@@ -10,6 +10,8 @@ let _admin = null;
 const CONFIG_DEFAULTS = {
   app: { name: "APH2 Access", version: "" },
   passback_minutes: 2,
+  session_hours: 12,
+  access_log: { default_from_minutes: 60 },
 };
 let _config = CONFIG_DEFAULTS;
 
